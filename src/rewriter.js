@@ -1,7 +1,7 @@
 import { execSync } from 'child_process';
 import { writeFileSync, unlinkSync, chmodSync } from 'fs';
 import { tmpdir } from 'os';
-import { join } from 'path';
+import { join, sep } from 'path';
 import { removeClaudeLines } from './scanner.js';
 
 export async function rewriteCommits(range, commits) {
@@ -48,7 +48,7 @@ export async function rewriteCommits(range, commits) {
   }
 }
 
-function createFilterScript() {
+export function createFilterScript() {
   // Create a Node.js script that filters the commit message
   const scriptContent = `
 const LINE_PATTERNS = [
@@ -77,12 +77,13 @@ process.stdin.on('end', () => {
   writeFileSync(scriptPath, scriptContent, 'utf-8');
   chmodSync(scriptPath, '755');
 
-  return `node ${scriptPath}`;
+  const posixPath = scriptPath.split(sep).join('/');
+  return `node "${posixPath}"`;
 }
 
-function cleanupFilterScript(filterCommand) {
+export function cleanupFilterScript(filterCommand) {
   // Extract script path from command
-  const match = filterCommand.match(/node (.+)$/);
+  const match = filterCommand.match(/node "?(.+?)"?$/);
   if (match) {
     try {
       unlinkSync(match[1]);
