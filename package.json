@@ -1,6 +1,6 @@
 {
   "name": "de-claude",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Remove Claude co-authorship attribution from unpushed git commits",
   "type": "module",
   "bin": {

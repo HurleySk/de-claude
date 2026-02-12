@@ -17,9 +17,12 @@ export async function rewriteCommits(range, commits) {
     const baseCommit = getBaseCommit(range);
 
     // Use git filter-branch with msg-filter
+    // Windows shells (cmd/PowerShell) don't treat single quotes as grouping,
+    // so use double quotes on Windows and single quotes elsewhere.
+    const q = process.platform === 'win32' ? '"' : "'";
     const filterCommand = baseCommit
-      ? `git filter-branch --force --msg-filter '${filterScript}' ${baseCommit}..HEAD`
-      : `git filter-branch --force --msg-filter '${filterScript}' HEAD`;
+      ? `git filter-branch --force --msg-filter ${q}${filterScript}${q} ${baseCommit}..HEAD`
+      : `git filter-branch --force --msg-filter ${q}${filterScript}${q} HEAD`;
 
     execSync(filterCommand, {
       encoding: 'utf-8',
