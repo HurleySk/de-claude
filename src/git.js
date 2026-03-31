@@ -100,7 +100,7 @@ function getDefaultBranch() {
   return null;
 }
 
-export function getCommits(range) {
+export function getCommits(range, { firstParent = false } = {}) {
   // Handle special cases
   let logRange;
   if (range === 'HEAD' || range === 'ROOT..HEAD') {
@@ -110,8 +110,9 @@ export function getCommits(range) {
     logRange = range;
   }
 
+  const firstParentFlag = firstParent ? '--first-parent ' : '';
   const format = '%H%x00%s%x00%B%x00';
-  const output = runGit(`log --format="${format}" ${logRange}`, { throwOnError: false });
+  const output = runGit(`log ${firstParentFlag}--format="${format}" ${logRange}`, { throwOnError: false });
 
   if (!output) {
     return [];

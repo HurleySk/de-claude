@@ -23,16 +23,16 @@ import {
 } from './ui.js';
 
 export async function run(options) {
-  const { dryRun, yes, verbose, range: explicitRange, remote, last } = options;
+  const { dryRun, yes, verbose, range: explicitRange, remote, last, all } = options;
 
   // Check if we're in a git repository
   if (!isGitRepo()) {
     throw new Error('Not a git repository. Please run this command from within a git repository.');
   }
 
-  // Validate --last and --range are mutually exclusive
-  if (last && explicitRange) {
-    throw new Error('--last and --range are mutually exclusive. Use one or the other.');
+  // Validate --all, --last, and --range are mutually exclusive
+  if ([last, explicitRange, all].filter(Boolean).length > 1) {
+    throw new Error('--all, --last, and --range are mutually exclusive. Use one.');
   }
 
   // Validate --last is a positive integer
@@ -43,12 +43,14 @@ export async function run(options) {
     }
   }
 
-  // Convert --last N to a range
-  const effectiveRange = last ? `HEAD~${parseInt(last, 10)}..HEAD` : explicitRange;
+  // Convert --last/--all to a range
+  const effectiveRange = all ? 'ROOT..HEAD'
+    : last ? `HEAD~${parseInt(last, 10)}..HEAD`
+    : explicitRange;
 
-  // Validate --remote requires --range or --last
+  // Validate --remote requires an explicit range
   if (remote && !effectiveRange) {
-    throw new Error('--remote requires --range or --last (e.g., --remote --last 5)');
+    throw new Error('--remote requires --range, --last, or --all (e.g., --remote --last 5)');
   }
 
   // Validate --remote requires a remote
@@ -66,7 +68,8 @@ export async function run(options) {
   const commitRange = getCommitRange(effectiveRange, trackingBranch);
 
   // Get all commits in range
-  const allCommits = getCommits(commitRange);
+  // Use --first-parent with --last to avoid counting merge branch commits
+  const allCommits = getCommits(commitRange, { firstParent: !!last });
 
   if (allCommits.length === 0) {
     if (!effectiveRange && trackingBranch) {
@@ -74,7 +77,7 @@ export async function run(options) {
       showInfo(
         'No unpushed commits found. All commits are already on the remote.\n' +
         '  To clean already-pushed commits, use:\n' +
-        '    de-claude --remote --last N'
+        '    de-claude --remote --last N  (or --remote --all for entire history)'
       );
     } else {
       showInfo('No commits found in the specified range.');
