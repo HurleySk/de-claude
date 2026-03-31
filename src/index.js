@@ -22,16 +22,32 @@ import {
 } from './ui.js';
 
 export async function run(options) {
-  const { dryRun, yes, verbose, range: explicitRange, remote } = options;
+  const { dryRun, yes, verbose, range: explicitRange, remote, last } = options;
 
   // Check if we're in a git repository
   if (!isGitRepo()) {
     throw new Error('Not a git repository. Please run this command from within a git repository.');
   }
 
-  // Validate --remote requires --range
-  if (remote && !explicitRange) {
-    throw new Error('--remote requires --range (e.g., --remote --range HEAD~5..HEAD)');
+  // Validate --last and --range are mutually exclusive
+  if (last && explicitRange) {
+    throw new Error('--last and --range are mutually exclusive. Use one or the other.');
+  }
+
+  // Validate --last is a positive integer
+  if (last !== undefined) {
+    const n = parseInt(last, 10);
+    if (isNaN(n) || n <= 0) {
+      throw new Error('--last requires a positive integer (e.g., --last 3)');
+    }
+  }
+
+  // Convert --last N to a range
+  const effectiveRange = last ? `HEAD~${parseInt(last, 10)}..HEAD` : explicitRange;
+
+  // Validate --remote requires --range or --last
+  if (remote && !effectiveRange) {
+    throw new Error('--remote requires --range or --last (e.g., --remote --last 5)');
   }
 
   // Validate --remote requires a remote
@@ -46,18 +62,18 @@ export async function run(options) {
 
   // Determine the commit range to process
   const trackingBranch = getTrackingBranch();
-  const commitRange = getCommitRange(explicitRange, trackingBranch);
+  const commitRange = getCommitRange(effectiveRange, trackingBranch);
 
   // Get all commits in range
   const allCommits = getCommits(commitRange);
 
   if (allCommits.length === 0) {
-    if (!explicitRange && trackingBranch) {
+    if (!effectiveRange && trackingBranch) {
       // All commits are already pushed — suggest --remote
       showInfo(
         'No unpushed commits found. All commits are already on the remote.\n' +
         '  To clean already-pushed commits, use:\n' +
-        '    de-claude --remote --range HEAD~N..HEAD'
+        '    de-claude --remote --last N'
       );
     } else {
       showInfo('No commits found in the specified range.');

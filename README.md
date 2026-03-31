@@ -28,7 +28,9 @@ This will:
 --dry-run          Show what would happen without making changes
 -y, --yes          Skip confirmation prompt
 --verbose          Show actual lines being removed
+--last <n>         Process only the last N commits
 --range <range>    Explicit commit range (e.g., HEAD~5..HEAD)
+--remote           Rewrite commits on origin (requires --range or --last, will force-push)
 -h, --help         Display help
 -V, --version      Display version
 ```
@@ -50,7 +52,12 @@ Skip confirmation (useful for scripts):
 de-claude --yes
 ```
 
-Only process specific commits:
+Only process the last 3 commits:
+```bash
+de-claude --last 3
+```
+
+Use explicit git range syntax:
 ```bash
 de-claude --range HEAD~3..HEAD
 ```
