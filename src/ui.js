@@ -51,6 +51,9 @@ export function showResult(count, pushStatus) {
     case 'normal-push':
       console.log(chalk.dim('You can push normally.'));
       break;
+    case 'pushed':
+      console.log(chalk.green('Changes have been force-pushed to origin.'));
+      break;
     case 'no-remote':
       // No message needed
       break;
@@ -85,5 +88,16 @@ export function showInfo(message) {
 export function showWarning(message) {
   console.log();
   console.log(chalk.yellow('Warning: ') + message);
+  console.log();
+}
+
+export function showRemoteWarning() {
+  console.log();
+  console.log(chalk.red.bold('⚠  WARNING: You are about to rewrite published history!'));
+  console.log();
+  console.log(chalk.yellow('  This will force-push to the remote, which:'));
+  console.log(chalk.yellow('  • Rewrites commits that others may have already pulled'));
+  console.log(chalk.yellow('  • Requires collaborators to reset their local branches'));
+  console.log(chalk.yellow('  • Can cause lost work if others have based work on these commits'));
   console.log();
 }

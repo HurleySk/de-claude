@@ -178,3 +178,7 @@ export function getCommitsBetween(base, head = 'HEAD') {
   if (!output) return [];
   return output.split('\n').filter(Boolean);
 }
+
+export function forcePush() {
+  return runGit('push --force-with-lease', { throwOnError: true });
+}

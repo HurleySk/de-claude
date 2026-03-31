@@ -17,6 +17,13 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>`;
     assert.strictEqual(hasClaudeAttribution(message), true);
   });
 
+  it('detects Co-Authored-By with Claude Opus 4.6', () => {
+    const message = `Fix bug
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>`;
+    assert.strictEqual(hasClaudeAttribution(message), true);
+  });
+
   it('detects Co-Authored-By with anthropic.com email', () => {
     const message = `Fix bug
 

@@ -6,11 +6,12 @@ import { run } from '../src/index.js';
 program
   .name('de-claude')
   .description('Remove Claude co-authorship attribution from unpushed git commits')
-  .version('1.0.0')
+  .version('1.1.0')
   .option('--dry-run', 'Show what would happen without making changes')
   .option('-y, --yes', 'Skip confirmation prompt')
   .option('--verbose', 'Show actual lines being removed')
   .option('--range <range>', 'Explicit commit range (e.g., HEAD~5..HEAD)')
+  .option('--remote', 'Rewrite commits on origin (requires --range, will force-push)')
   .action(async (options) => {
     try {
       await run(options);
