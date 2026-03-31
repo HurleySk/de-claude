@@ -6,7 +6,7 @@ import { run } from '../src/index.js';
 program
   .name('de-claude')
   .description('Remove Claude co-authorship attribution from unpushed git commits')
-  .version('1.2.0')
+  .version('1.2.1')
   .option('--dry-run', 'Show what would happen without making changes')
   .option('-y, --yes', 'Skip confirmation prompt')
   .option('--verbose', 'Show actual lines being removed')

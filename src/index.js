@@ -5,6 +5,7 @@ import {
   getCommitRange,
   getCommits,
   hasRemote,
+  hasParent,
   needsForcePush,
   forcePush
 } from './git.js';
@@ -116,9 +117,16 @@ export async function run(options) {
     }
   }
 
+  // Narrow the filter-branch range to start from the oldest affected commit
+  // This avoids rewriting clean commits that happen to be in the scan range
+  const oldestAffected = affectedCommits[affectedCommits.length - 1];
+  const rewriteRange = hasParent(oldestAffected.fullHash)
+    ? `${oldestAffected.fullHash}~1..HEAD`
+    : 'ROOT..HEAD';
+
   // Rewrite commits
   console.log('\nRewriting commits...');
-  const result = await rewriteCommits(commitRange, affectedCommits);
+  const result = await rewriteCommits(rewriteRange, affectedCommits);
 
   if (!result.success) {
     throw new Error(`Failed to rewrite commits: ${result.error}`);

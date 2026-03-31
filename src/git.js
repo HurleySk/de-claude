@@ -53,6 +53,11 @@ export function getCurrentBranch() {
   return runGit('rev-parse --abbrev-ref HEAD');
 }
 
+export function hasParent(hash) {
+  const result = runGit(`rev-parse --verify ${hash}~1`, { throwOnError: false });
+  return result !== null;
+}
+
 export function hasRemote() {
   const result = runGit('remote', { throwOnError: false });
   return result && result.length > 0;
