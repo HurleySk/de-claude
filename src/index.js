@@ -16,7 +16,6 @@ import {
   showPreview,
   showDryRun,
   showResult,
-  showError,
   showInfo,
   showRemoteWarning,
   confirm
@@ -80,7 +79,7 @@ export async function run(options) {
         '    de-claude --remote --last N  (or --remote --all for entire history)'
       );
     } else {
-      showInfo('No commits found in the specified range.');
+      showInfo(`No commits found in range: ${commitRange}`);
     }
     return;
   }
@@ -89,18 +88,26 @@ export async function run(options) {
   const affectedCommits = scanCommits(allCommits);
 
   if (affectedCommits.length === 0) {
-    showInfo('No commits with Claude attribution found.');
+    showInfo(`No commits with Claude attribution found (scanned ${allCommits.length} commit${allCommits.length === 1 ? '' : 's'}).`);
     return;
   }
 
+  // Compute rewrite range from oldest affected commit (narrower than scan range)
+  const oldestAffected = affectedCommits[affectedCommits.length - 1];
+  const rewriteRange = hasParent(oldestAffected.fullHash)
+    ? `${oldestAffected.fullHash}~1..HEAD`
+    : 'ROOT..HEAD';
+  const oldestIdx = allCommits.findIndex(c => c.fullHash === oldestAffected.fullHash);
+  const rewriteCount = oldestIdx + 1;
+
   // Handle dry-run mode
   if (dryRun) {
-    showDryRun(affectedCommits, allCommits.length, verbose);
+    showDryRun(affectedCommits, rewriteCount, verbose);
     return;
   }
 
   // Show preview
-  showPreview(affectedCommits, allCommits.length, verbose);
+  showPreview(affectedCommits, rewriteCount, verbose);
 
   // Remote mode: show strong warning
   if (remote) {
@@ -119,13 +126,6 @@ export async function run(options) {
       return;
     }
   }
-
-  // Narrow the filter-branch range to start from the oldest affected commit
-  // This avoids rewriting clean commits that happen to be in the scan range
-  const oldestAffected = affectedCommits[affectedCommits.length - 1];
-  const rewriteRange = hasParent(oldestAffected.fullHash)
-    ? `${oldestAffected.fullHash}~1..HEAD`
-    : 'ROOT..HEAD';
 
   // Rewrite commits
   console.log('\nRewriting commits...');
@@ -164,4 +164,8 @@ export async function run(options) {
   }
 
   showResult(affectedCommits.length, pushStatus);
+
+  if (pushStatus === 'force-push-needed' && effectiveRange) {
+    showInfo('Tip: Use --remote to automatically force-push in one step.');
+  }
 }

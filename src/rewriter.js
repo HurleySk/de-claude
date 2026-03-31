@@ -137,13 +137,3 @@ function getBaseCommit(range) {
 
   return null;
 }
-
-export function getRewriteRange(range, commits) {
-  // Find the earliest commit that needs rewriting
-  if (commits.length === 0) {
-    return null;
-  }
-
-  // The range should include all commits from the earliest affected one
-  return range;
-}

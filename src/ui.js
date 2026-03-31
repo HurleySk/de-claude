@@ -73,21 +73,9 @@ export function showDryRun(affectedCommits, totalCommitsInRange, verbose = false
   }
 }
 
-export function showError(message) {
-  console.error();
-  console.error(chalk.red('Error: ') + message);
-  console.error();
-}
-
 export function showInfo(message) {
   console.log();
   console.log(chalk.blue('Info: ') + message);
-  console.log();
-}
-
-export function showWarning(message) {
-  console.log();
-  console.log(chalk.yellow('Warning: ') + message);
   console.log();
 }
 
