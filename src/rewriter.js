@@ -50,39 +50,37 @@ export async function rewriteCommits(range, commits, { messageMap } = {}) {
   }
 }
 
-// Shell-based grep patterns matching LINE_PATTERNS from scanner.js
-// Using grep -v with extended regex to filter out attribution lines.
-// Each pattern is case-insensitive where needed.
-const GREP_STRIP_PATTERNS = [
-  { pattern: '^[Cc][Oo]-[Aa][Uu][Tt][Hh][Oo][Rr][Ee][Dd]-[Bb][Yy]:.*[Cc][Ll][Aa][Uu][Dd][Ee]', flags: '' },
-  { pattern: '^[Cc][Oo]-[Aa][Uu][Tt][Hh][Oo][Rr][Ee][Dd]-[Bb][Yy]:.*@[Aa][Nn][Tt][Hh][Rr][Oo][Pp][Ii][Cc]\\.[Cc][Oo][Mm]', flags: '' },
-  { pattern: 'Generated with \\[Claude Code\\]', flags: '' },
-  { pattern: 'Generated with Claude Code', flags: '' },
-  { pattern: '🤖.*Generated with.*Claude', flags: '' },
+// Sed patterns matching LINE_PATTERNS from scanner.js
+// Combined into a single sed command to avoid spawning multiple processes.
+// Each pattern deletes matching lines in one pass.
+const SED_DELETE_PATTERNS = [
+  '/^[Cc][Oo]-[Aa][Uu][Tt][Hh][Oo][Rr][Ee][Dd]-[Bb][Yy]:.*[Cc][Ll][Aa][Uu][Dd][Ee]/d',
+  '/^[Cc][Oo]-[Aa][Uu][Tt][Hh][Oo][Rr][Ee][Dd]-[Bb][Yy]:.*@[Aa][Nn][Tt][Hh][Rr][Oo][Pp][Ii][Cc]\\.[Cc][Oo][Mm]/d',
+  '/Generated with \\[Claude Code\\]/d',
+  '/Generated with Claude Code/d',
+  '/🤖.*Generated with.*Claude/d',
 ];
 
-function buildGrepChain() {
-  // Build a chain of grep -v commands to strip attribution lines.
-  // Each grep -v removes lines matching that pattern. We use character
-  // classes for case-insensitivity instead of -i to keep it portable.
-  // grep -v exits 1 when no lines pass through, so we use "|| true" per stage.
-  return GREP_STRIP_PATTERNS
-    .map(({ pattern }) => `(grep -v '${pattern}' || true)`)
-    .join(' | ');
+function buildSedFilter() {
+  // Build a single sed command that deletes all attribution lines and
+  // collapses excessive blank lines, replacing the old grep chain + awk + sed
+  // pipeline (7 processes) with a single process.
+  const deleteExprs = SED_DELETE_PATTERNS.map(p => `-e '${p}'`).join(' ');
+  return `sed ${deleteExprs}`;
 }
 
 export function createFilterScript(messageMap) {
   const hasMap = messageMap && messageMap.size > 0;
-  const grepChain = buildGrepChain();
+  const sedFilter = buildSedFilter();
 
-  // The blank-line cleanup: collapse 3+ consecutive newlines to 2, trim trailing whitespace.
-  // Using awk for portability (works identically on macOS and Linux).
-  const cleanupAwk = `awk 'BEGIN{b=0} /^[[:space:]]*$/{b++;if(b<=1)print;next} {b=0;print}' | sed -e :a -e '/^\\n*$/{$d;N;ba' -e '}'`;
+  // Blank-line cleanup: remove trailing blank lines from the message.
+  // The N;ba loop accumulates trailing blank lines and $d deletes them at EOF.
+  const cleanupSed = `sed -e :a -e '/^\\n*$/{$d;N;ba' -e '}'`;
 
   if (!hasMap) {
-    // Strip-only: pure shell pipeline, no temp file needed
+    // Strip-only: sed filter + cleanup (2 processes total vs 7 in the old grep chain)
     const scriptContent = `#!/bin/sh
-${grepChain} | ${cleanupAwk}
+${sedFilter} | ${cleanupSed}
 `;
     const scriptPath = join(tmpdir(), `de-claude-filter-${process.pid}.sh`);
     writeFileSync(scriptPath, scriptContent, 'utf-8');
@@ -93,11 +91,8 @@ ${grepChain} | ${cleanupAwk}
   // Interactive path: embed message map as cksum-keyed lookup in shell script
   const mapEntries = [];
   for (const [original, replacement] of messageMap) {
-    // Compute cksum of the trimmed original message for lookup
-    // We'll compute it at script generation time using Node, then embed the value
     const trimmed = original.trim();
     const cksum = computeCksum(trimmed);
-    // Escape single quotes in replacement for embedding in shell heredoc
     const escapedReplacement = replacement.replace(/'/g, "'\\''");
     mapEntries.push({ cksum, replacement: escapedReplacement });
   }
@@ -112,7 +107,7 @@ HASH=$(printf '%s' "$MSG" | cksum | cut -d' ' -f1)
 case "$HASH" in
 ${caseEntries}
 esac
-printf '%s' "$MSG" | ${grepChain} | ${cleanupAwk}
+printf '%s' "$MSG" | ${sedFilter} | ${cleanupSed}
 `;
 
   const scriptPath = join(tmpdir(), `de-claude-filter-${process.pid}.sh`);
