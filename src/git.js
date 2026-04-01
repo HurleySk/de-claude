@@ -25,7 +25,7 @@ export function isDirty() {
   // Only check for staged/unstaged changes to tracked files.
   // Untracked files (like worktree directories) are not at risk
   // from filter-branch and should not block operation.
-  const status = runGit('status --porcelain -uno');
+  const status = runGit('status --porcelain -uno --ignore-submodules=all');
   return status.length > 0;
 }
 

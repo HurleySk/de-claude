@@ -6,7 +6,7 @@ import { run, runScanFiles, runInteractiveScan } from '../src/index.js';
 program
   .name('de-claude')
   .description('Remove Claude co-authorship attribution from git commits')
-  .version('2.2.0');
+  .version('2.2.1');
 
 // Default command: clean (strip Claude attribution lines)
 const clean = program

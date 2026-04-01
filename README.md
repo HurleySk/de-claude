@@ -197,6 +197,10 @@ When run without `--last`, `--all`, or `--range`, de-claude automatically determ
 
 Changing a commit message changes its SHA. Every descendant commit also gets a new SHA because its parent changed. This is inherent to git — de-claude minimizes the blast radius by starting the rewrite from the oldest affected commit, not the full scan range.
 
+### Submodules
+
+Repositories with git submodules work out of the box. Submodules are automatically ignored — their commit history is independent and managed in their own repos. de-claude only operates on the parent repository's commits.
+
 ## Requirements
 
 - Node.js 18+

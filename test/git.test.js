@@ -4,7 +4,7 @@ import { execSync } from 'child_process';
 import { mkdtempSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { isGitRepo, getCommits, hasParent } from '../src/git.js';
+import { isGitRepo, isDirty, getCommits, hasParent } from '../src/git.js';
 
 describe('isGitRepo', () => {
   it('returns true when in a git repository', () => {
@@ -79,6 +79,63 @@ describe('getCommits with merge history', () => {
     assert.strictEqual(commits.length, 3, `Expected exactly 3 commits, got ${commits.length}`);
     const subjects = commits.map(c => c.subject);
     assert.ok(!subjects.includes('commit C'), 'Should NOT include merge branch commit C');
+  });
+});
+
+describe('isDirty with submodules', () => {
+  let tmpDir;
+  let originalCwd;
+
+  before(() => {
+    originalCwd = process.cwd();
+    tmpDir = mkdtempSync(join(tmpdir(), 'de-claude-test-'));
+
+    const git = (cmd) => execSync(`git ${cmd}`, { cwd: tmpDir, encoding: 'utf-8', stdio: 'pipe' });
+
+    // Create a parent repo
+    git('init -b main');
+    git('config user.email "test@test.com"');
+    git('config user.name "Test"');
+    execSync('echo parent > file.txt', { cwd: tmpDir });
+    git('add file.txt');
+    git('commit -m "initial"');
+
+    // Create a separate repo to use as a submodule
+    const subDir = mkdtempSync(join(tmpdir(), 'de-claude-sub-'));
+    const subGit = (cmd) => execSync(`git ${cmd}`, { cwd: subDir, encoding: 'utf-8', stdio: 'pipe' });
+    subGit('init -b main');
+    subGit('config user.email "test@test.com"');
+    subGit('config user.name "Test"');
+    execSync('echo sub > sub.txt', { cwd: subDir });
+    subGit('add sub.txt');
+    subGit('commit -m "sub initial"');
+
+    // Add it as a submodule (allow local file:// transport for test)
+    git('-c protocol.file.allow=always submodule add ' + subDir.replace(/\\/g, '/') + ' mysub');
+    git('commit -m "add submodule"');
+
+    // Make a new commit in the submodule to create a dirty pointer
+    subGit('commit --allow-empty -m "new sub commit"');
+    execSync('git -C mysub pull', { cwd: tmpDir, encoding: 'utf-8', stdio: 'pipe' });
+
+    process.chdir(tmpDir);
+  });
+
+  after(() => {
+    process.chdir(originalCwd);
+    rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('does not report dirty when only the submodule pointer changed', () => {
+    // The submodule pointer is modified, but isDirty() should ignore it
+    assert.strictEqual(isDirty(), false);
+  });
+
+  it('reports dirty when a tracked file in the parent repo is modified', () => {
+    execSync('echo modified > file.txt', { cwd: tmpDir });
+    assert.strictEqual(isDirty(), true);
+    // Restore
+    execSync('git checkout file.txt', { cwd: tmpDir, stdio: 'pipe' });
   });
 });
 
