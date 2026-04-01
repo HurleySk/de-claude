@@ -83,7 +83,7 @@ de-claude --remote --all
 de-claude --remote --range abc1234..HEAD
 ```
 
-`--remote` always requires confirmation, even with `--yes`, because force-pushing rewrites published history.
+`--remote` requires confirmation before force-pushing. Pass `--yes` to skip all prompts (useful for scripts and CI).
 
 ### Scanning files for Claude mentions
 
@@ -126,7 +126,13 @@ de-claude scan --last 10
 de-claude scan --remote --last 10
 ```
 
-Options: `--last <n>`, `--all`, `--range <range>`, `--remote`, `--broad`, `--verbose`, `--dry-run`.
+Options: `--last <n>`, `--all`, `--range <range>`, `--remote`, `--broad`, `--verbose`, `--dry-run`, `-y/--yes`.
+
+Use `--yes` to auto-strip all found attributions without per-commit prompts (useful for scripts):
+
+```bash
+de-claude scan --yes --remote --all
+```
 
 Use `--broad` to also match commits that mention "Claude" anywhere in the message (not just attribution lines).
 

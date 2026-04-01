@@ -115,7 +115,7 @@ export async function run(options) {
 
   showPreview(affectedCommits, rewriteCount, verbose);
 
-  if (remote) {
+  if (remote && !yes) {
     showRemoteWarning();
     const proceed = await confirm('Force-push rewritten commits to origin?');
     if (!proceed) {
@@ -170,7 +170,7 @@ export async function runScanFiles(options) {
 }
 
 export async function runInteractiveScan(options) {
-  const { dryRun, verbose, remote, last, broad } = options;
+  const { dryRun, verbose, remote, last, broad, yes } = options;
 
   const effectiveRange = validateOptions(options);
 
@@ -203,8 +203,10 @@ export async function runInteractiveScan(options) {
     return;
   }
 
-  // Interactive: prompt user per commit
-  const { messageMap, stripCommits, skippedCount } = await promptForRewrites(affectedCommits);
+  // Interactive: prompt user per commit (or auto-strip with --yes)
+  const { messageMap, stripCommits, skippedCount } = yes
+    ? { messageMap: new Map(), stripCommits: [...affectedCommits], skippedCount: 0 }
+    : await promptForRewrites(affectedCommits);
 
   const commitsToRewrite = [...stripCommits, ...affectedCommits.filter(c => messageMap.has(c.message))];
 
@@ -225,14 +227,14 @@ export async function runInteractiveScan(options) {
   console.log();
   console.log(`${commitsToRewrite.length} commit${commitsToRewrite.length === 1 ? '' : 's'} to rewrite (${messageMap.size} edited, ${stripCommits.length} stripped${skippedCount > 0 ? `, ${skippedCount} skipped` : ''}).`);
 
-  if (remote) {
+  if (remote && !yes) {
     showRemoteWarning();
     const proceed = await confirm('Force-push rewritten commits to origin?');
     if (!proceed) {
       console.log('\nAborted.\n');
       return;
     }
-  } else {
+  } else if (!yes) {
     const proceed = await confirm('Proceed with rewriting history?');
     if (!proceed) {
       console.log('\nAborted.\n');
