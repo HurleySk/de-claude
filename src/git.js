@@ -22,7 +22,10 @@ export function isGitRepo() {
 }
 
 export function isDirty() {
-  const status = runGit('status --porcelain');
+  // Only check for staged/unstaged changes to tracked files.
+  // Untracked files (like worktree directories) are not at risk
+  // from filter-branch and should not block operation.
+  const status = runGit('status --porcelain -uno');
   return status.length > 0;
 }
 
