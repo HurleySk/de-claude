@@ -7,25 +7,30 @@ export const LINE_PATTERNS = [
   /^.*🤖.*Generated with.*Claude.*/
 ];
 
-export function hasClaudeAttribution(message) {
+const BROAD_PATTERN = /claude/i;
+
+export function hasClaudeAttribution(message, { broad = false } = {}) {
   const lines = message.split('\n');
+  if (broad) {
+    return lines.some(line => BROAD_PATTERN.test(line));
+  }
   return lines.some(line => LINE_PATTERNS.some(pattern => pattern.test(line)));
 }
 
-export function findClaudeLines(message) {
+export function findClaudeLines(message, { broad = false } = {}) {
   const lines = message.split('\n');
   const matches = [];
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    for (const pattern of LINE_PATTERNS) {
-      if (pattern.test(line)) {
-        matches.push({
-          lineNumber: i + 1,
-          content: line.trim()
-        });
-        break;
-      }
+    const isAttribution = LINE_PATTERNS.some(pattern => pattern.test(line));
+    const isBroadMatch = broad && !isAttribution && BROAD_PATTERN.test(line);
+    if (isAttribution || isBroadMatch) {
+      matches.push({
+        lineNumber: i + 1,
+        content: line.trim(),
+        matchType: isAttribution ? 'attribution' : 'mention'
+      });
     }
   }
 
@@ -47,11 +52,11 @@ export function removeClaudeLines(message) {
   return result;
 }
 
-export function scanCommits(commits) {
+export function scanCommits(commits, { broad = false } = {}) {
   return commits
-    .filter(commit => hasClaudeAttribution(commit.message))
+    .filter(commit => hasClaudeAttribution(commit.message, { broad }))
     .map(commit => ({
       ...commit,
-      claudeLines: findClaudeLines(commit.message)
+      claudeLines: findClaudeLines(commit.message, { broad })
     }));
 }

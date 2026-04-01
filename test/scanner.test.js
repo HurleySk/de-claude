@@ -56,6 +56,26 @@ Co-Authored-By: John Doe <john@example.com>`;
     const message = 'Fix bug';
     assert.strictEqual(hasClaudeAttribution(message), false);
   });
+
+  it('broad mode detects any Claude mention', () => {
+    const message = 'Add menu-driven Boomerang CLI and CLAUDE.md';
+    assert.strictEqual(hasClaudeAttribution(message, { broad: true }), true);
+  });
+
+  it('broad mode detects Claude in body text', () => {
+    const message = 'feat: auto-generate manifest\n\nThis lets Claude Code agents understand connections.';
+    assert.strictEqual(hasClaudeAttribution(message, { broad: true }), true);
+  });
+
+  it('broad mode returns false for messages without Claude', () => {
+    const message = 'Fix bug\n\nRefactored the parser module.';
+    assert.strictEqual(hasClaudeAttribution(message, { broad: true }), false);
+  });
+
+  it('default mode does not match broad mentions', () => {
+    const message = 'Add CLAUDE.md to the repo';
+    assert.strictEqual(hasClaudeAttribution(message), false);
+  });
 });
 
 describe('findClaudeLines', () => {
@@ -73,6 +93,14 @@ Co-Authored-By: Claude <noreply@anthropic.com>`;
     const message = 'Fix bug';
     const lines = findClaudeLines(message);
     assert.strictEqual(lines.length, 0);
+  });
+
+  it('broad mode finds Claude mentions with matchType', () => {
+    const message = 'Updated CLAUDE.md docs\n\nCo-Authored-By: Claude <noreply@anthropic.com>';
+    const lines = findClaudeLines(message, { broad: true });
+    assert.strictEqual(lines.length, 2);
+    assert.strictEqual(lines[0].matchType, 'mention');
+    assert.strictEqual(lines[1].matchType, 'attribution');
   });
 });
 

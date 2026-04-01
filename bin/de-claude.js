@@ -6,7 +6,7 @@ import { run, runScanFiles, runInteractiveScan } from '../src/index.js';
 program
   .name('de-claude')
   .description('Remove Claude co-authorship attribution from git commits')
-  .version('2.1.0');
+  .version('2.1.3');
 
 // Default command: clean (strip Claude attribution lines)
 const clean = program
@@ -19,6 +19,7 @@ const clean = program
   .option('--all', 'Process all commits on the current branch (entire history)')
   .option('--range <range>', 'Process an explicit commit range (e.g., HEAD~5..HEAD)')
   .option('--remote', 'Force-push rewritten commits to origin (rewrites published history)')
+  .option('--broad', 'Also match commits that mention Claude anywhere in the message')
   .action(async (options) => {
     try {
       await run(options);
@@ -52,6 +53,7 @@ program
   .option('--all', 'Process all commits on the current branch (entire history)')
   .option('--range <range>', 'Process an explicit commit range (e.g., HEAD~5..HEAD)')
   .option('--remote', 'Force-push rewritten commits to origin (rewrites published history)')
+  .option('--broad', 'Also match commits that mention Claude anywhere in the message')
   .action(async (options) => {
     try {
       await runInteractiveScan(options);

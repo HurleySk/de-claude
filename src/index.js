@@ -70,7 +70,7 @@ function determinePushStatus(trackingBranch) {
 }
 
 export async function run(options) {
-  const { dryRun, yes, verbose, remote, last } = options;
+  const { dryRun, yes, verbose, remote, last, broad } = options;
 
   const effectiveRange = validateOptions(options);
 
@@ -93,7 +93,7 @@ export async function run(options) {
     return;
   }
 
-  const affectedCommits = scanCommits(allCommits);
+  const affectedCommits = scanCommits(allCommits, { broad });
 
   if (affectedCommits.length === 0) {
     showInfo(`No commits with Claude attribution found (scanned ${allCommits.length} commit${allCommits.length === 1 ? '' : 's'}).`);
@@ -170,7 +170,7 @@ export async function runScanFiles(options) {
 }
 
 export async function runInteractiveScan(options) {
-  const { dryRun, verbose, remote, last } = options;
+  const { dryRun, verbose, remote, last, broad } = options;
 
   const effectiveRange = validateOptions(options);
 
@@ -191,7 +191,7 @@ export async function runInteractiveScan(options) {
     return;
   }
 
-  const affectedCommits = scanCommits(allCommits);
+  const affectedCommits = scanCommits(allCommits, { broad });
 
   if (affectedCommits.length === 0) {
     showInfo(`No commits with Claude attribution found (scanned ${allCommits.length} commit${allCommits.length === 1 ? '' : 's'}).`);

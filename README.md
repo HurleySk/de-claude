@@ -42,6 +42,7 @@ de-claude has three modes:
 --all              Process all commits on the current branch
 --range <range>    Explicit git commit range (e.g., HEAD~5..HEAD)
 --remote           Rewrite already-pushed commits (requires --last, --all, or --range; force-pushes)
+--broad            Also match commits that mention Claude anywhere in the message
 -h, --help         Display help
 -V, --version      Display version
 ```
@@ -125,7 +126,9 @@ de-claude scan --last 10
 de-claude scan --remote --last 10
 ```
 
-Options: `--last <n>`, `--all`, `--range <range>`, `--remote`, `--verbose`, `--dry-run`.
+Options: `--last <n>`, `--all`, `--range <range>`, `--remote`, `--broad`, `--verbose`, `--dry-run`.
+
+Use `--broad` to also match commits that mention "Claude" anywhere in the message (not just attribution lines).
 
 ### Other examples
 
@@ -148,6 +151,7 @@ de-claude --yes
 
 - `Co-Authored-By` lines containing "Claude" or "@anthropic.com"
 - `Generated with [Claude Code]` lines
+- With `--broad`: any line mentioning "Claude" (e.g., "CLAUDE.md", "Claude Code agents", variable names)
 
 ### Before
 
