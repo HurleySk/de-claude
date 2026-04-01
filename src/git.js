@@ -128,15 +128,30 @@ export function needsForcePush(trackingBranch) {
     return false;
   }
 
-  // Check if there are commits on remote that we have locally
-  const behindCount = runGit(`rev-list --count HEAD..${trackingBranch}`, { throwOnError: false });
-  const aheadCount = runGit(`rev-list --count ${trackingBranch}..HEAD`, { throwOnError: false });
+  // Single call to check ahead/behind counts using symmetric difference
+  const counts = runGit(`rev-list --left-right --count HEAD...${trackingBranch}`, { throwOnError: false });
+  if (!counts) return false;
 
-  // If we're ahead and remote has our commits, we'll need force push after rewriting
-  // Actually, we need to check if the commits we're rewriting exist on remote
-  return aheadCount && parseInt(aheadCount) > 0;
+  const [ahead] = counts.split('\t');
+  return parseInt(ahead) > 0;
 }
 
 export function forcePush() {
   return runGit('push --force-with-lease', { throwOnError: true });
+}
+
+export function gitGrep(pattern, flags = '') {
+  return gitGrepMulti([pattern], flags);
+}
+
+export function gitGrepMulti(patterns, flags = '') {
+  const patternArgs = patterns.map(p => `-e ${JSON.stringify(p)}`).join(' ');
+  const output = runGit(`grep -n ${flags} ${patternArgs}`, { throwOnError: false });
+  if (!output) return [];
+
+  return output.split('\n').filter(Boolean).map(line => {
+    const match = line.match(/^(.+?):(\d+):(.*)$/);
+    if (!match) return null;
+    return { file: match[1], lineNumber: parseInt(match[2], 10), content: match[3] };
+  }).filter(Boolean);
 }

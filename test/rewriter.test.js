@@ -11,34 +11,25 @@ describe('createFilterScript', () => {
     }
   });
 
-  it('returns a command with forward slashes only', () => {
+  it('returns a path to a shell script', () => {
     filterCommand = createFilterScript();
-    const pathPart = filterCommand.replace(/^node "?/, '').replace(/"?$/, '');
-    assert.ok(!pathPart.includes('\\'), `Path should not contain backslashes: ${pathPart}`);
+    assert.ok(filterCommand.endsWith('.sh'), `Should be a .sh file: ${filterCommand}`);
   });
 
-  it('returns a command with a quoted path', () => {
+  it('returns a path with forward slashes only', () => {
     filterCommand = createFilterScript();
-    assert.match(filterCommand, /^node ".+"$/);
+    assert.ok(!filterCommand.includes('\\'), `Path should not contain backslashes: ${filterCommand}`);
   });
 });
 
 describe('cleanupFilterScript', () => {
-  it('extracts path from a quoted command', () => {
+  it('removes the script file without throwing', () => {
     const filterCommand = createFilterScript();
     // cleanupFilterScript should remove the file without throwing
     cleanupFilterScript(filterCommand);
   });
 
-  it('extracts path from a command with forward slashes', () => {
-    const cmd = 'node "/tmp/de-claude-filter-12345.js"';
-    const match = cmd.match(/node "?(.+?)"?$/);
-    assert.strictEqual(match[1], '/tmp/de-claude-filter-12345.js');
-  });
-
-  it('extracts path from a command without quotes (legacy)', () => {
-    const cmd = 'node /tmp/de-claude-filter-12345.js';
-    const match = cmd.match(/node "?(.+?)"?$/);
-    assert.strictEqual(match[1], '/tmp/de-claude-filter-12345.js');
+  it('does not throw for nonexistent path', () => {
+    cleanupFilterScript('/tmp/nonexistent-de-claude-filter.sh');
   });
 });

@@ -1,16 +1,15 @@
 import { execSync } from 'child_process';
 import { writeFileSync, unlinkSync, chmodSync } from 'fs';
 import { tmpdir } from 'os';
-import { join, sep } from 'path';
-import { LINE_PATTERNS } from './scanner.js';
+import { join } from 'path';
 
-export async function rewriteCommits(range, commits) {
+export async function rewriteCommits(range, commits, { messageMap } = {}) {
   if (commits.length === 0) {
     return { success: true, rewrittenCount: 0 };
   }
 
   // Create a temporary script for the msg-filter
-  const filterScript = createFilterScript();
+  const filterScript = createFilterScript(messageMap);
 
   try {
     // Determine the base commit for rebasing
@@ -51,47 +50,98 @@ export async function rewriteCommits(range, commits) {
   }
 }
 
-export function createFilterScript() {
-  // Create a Node.js script that filters the commit message
-  const serializedPatterns = LINE_PATTERNS
-    .map(p => `  new RegExp(${JSON.stringify(p.source)}, ${JSON.stringify(p.flags)})`)
-    .join(',\n');
-  const scriptContent = `
-const LINE_PATTERNS = [
-${serializedPatterns}
+// Shell-based grep patterns matching LINE_PATTERNS from scanner.js
+// Using grep -v with extended regex to filter out attribution lines.
+// Each pattern is case-insensitive where needed.
+const GREP_STRIP_PATTERNS = [
+  { pattern: '^[Cc][Oo]-[Aa][Uu][Tt][Hh][Oo][Rr][Ee][Dd]-[Bb][Yy]:.*[Cc][Ll][Aa][Uu][Dd][Ee]', flags: '' },
+  { pattern: '^[Cc][Oo]-[Aa][Uu][Tt][Hh][Oo][Rr][Ee][Dd]-[Bb][Yy]:.*@[Aa][Nn][Tt][Hh][Rr][Oo][Pp][Ii][Cc]\\.[Cc][Oo][Mm]', flags: '' },
+  { pattern: 'Generated with \\[Claude Code\\]', flags: '' },
+  { pattern: 'Generated with Claude Code', flags: '' },
+  { pattern: '🤖.*Generated with.*Claude', flags: '' },
 ];
 
-let message = '';
-process.stdin.setEncoding('utf8');
-process.stdin.on('data', (chunk) => { message += chunk; });
-process.stdin.on('end', () => {
-  const lines = message.split('\\n');
-  const filteredLines = lines.filter(line => {
-    return !LINE_PATTERNS.some(pattern => pattern.test(line));
-  });
-  let result = filteredLines.join('\\n');
-  result = result.replace(/\\n{3,}/g, '\\n\\n').trimEnd();
-  process.stdout.write(result);
-});
+function buildGrepChain() {
+  // Build a chain of grep -v commands to strip attribution lines.
+  // Each grep -v removes lines matching that pattern. We use character
+  // classes for case-insensitivity instead of -i to keep it portable.
+  // grep -v exits 1 when no lines pass through, so we use "|| true" per stage.
+  return GREP_STRIP_PATTERNS
+    .map(({ pattern }) => `(grep -v '${pattern}' || true)`)
+    .join(' | ');
+}
+
+export function createFilterScript(messageMap) {
+  const hasMap = messageMap && messageMap.size > 0;
+  const grepChain = buildGrepChain();
+
+  // The blank-line cleanup: collapse 3+ consecutive newlines to 2, trim trailing whitespace.
+  // Using awk for portability (works identically on macOS and Linux).
+  const cleanupAwk = `awk 'BEGIN{b=0} /^[[:space:]]*$/{b++;if(b<=1)print;next} {b=0;print}' | sed -e :a -e '/^\\n*$/{$d;N;ba' -e '}'`;
+
+  if (!hasMap) {
+    // Strip-only: pure shell pipeline, no temp file needed
+    const scriptContent = `#!/bin/sh
+${grepChain} | ${cleanupAwk}
+`;
+    const scriptPath = join(tmpdir(), `de-claude-filter-${process.pid}.sh`);
+    writeFileSync(scriptPath, scriptContent, 'utf-8');
+    chmodSync(scriptPath, '755');
+    return scriptPath;
+  }
+
+  // Interactive path: embed message map as cksum-keyed lookup in shell script
+  const mapEntries = [];
+  for (const [original, replacement] of messageMap) {
+    // Compute cksum of the trimmed original message for lookup
+    // We'll compute it at script generation time using Node, then embed the value
+    const trimmed = original.trim();
+    const cksum = computeCksum(trimmed);
+    // Escape single quotes in replacement for embedding in shell heredoc
+    const escapedReplacement = replacement.replace(/'/g, "'\\''");
+    mapEntries.push({ cksum, replacement: escapedReplacement });
+  }
+
+  const caseEntries = mapEntries
+    .map(({ cksum, replacement }) => `    ${cksum}) printf '%s' '${replacement}' ; exit 0 ;;`)
+    .join('\n');
+
+  const scriptContent = `#!/bin/sh
+MSG=$(cat)
+HASH=$(printf '%s' "$MSG" | cksum | cut -d' ' -f1)
+case "$HASH" in
+${caseEntries}
+esac
+printf '%s' "$MSG" | ${grepChain} | ${cleanupAwk}
 `;
 
-  const scriptPath = join(tmpdir(), `de-claude-filter-${process.pid}.js`);
+  const scriptPath = join(tmpdir(), `de-claude-filter-${process.pid}.sh`);
   writeFileSync(scriptPath, scriptContent, 'utf-8');
   chmodSync(scriptPath, '755');
+  return scriptPath;
+}
 
-  const posixPath = scriptPath.split(sep).join('/');
-  return `node "${posixPath}"`;
+function computeCksum(text) {
+  // Use Node's execSync to get the same cksum the shell script will compute
+  const result = execSync(`printf '%s' ${shellQuote(text)} | cksum | cut -d' ' -f1`, {
+    encoding: 'utf-8',
+    stdio: ['pipe', 'pipe', 'pipe']
+  });
+  return result.trim();
+}
+
+function shellQuote(s) {
+  // Safely quote a string for shell by wrapping in single quotes
+  // and escaping embedded single quotes
+  return "'" + s.replace(/'/g, "'\\''") + "'";
 }
 
 export function cleanupFilterScript(filterCommand) {
-  // Extract script path from command
-  const match = filterCommand.match(/node "?(.+?)"?$/);
-  if (match) {
-    try {
-      unlinkSync(match[1]);
-    } catch {
-      // Ignore cleanup errors
-    }
+  // The filterCommand is now just a path to a .sh file
+  try {
+    unlinkSync(filterCommand);
+  } catch {
+    // Ignore cleanup errors
   }
 }
 
