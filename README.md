@@ -1,6 +1,6 @@
 # de-claude
 
-Remove Claude co-authorship attribution from git commits.
+Remove Claude co-authorship attribution from git commits and scan your repo for Claude mentions.
 
 ## Installation
 
@@ -22,7 +22,17 @@ This will:
 3. Ask for confirmation
 4. Remove the attribution lines and rewrite history
 
-### Options
+### Commands
+
+de-claude has three modes:
+
+| Command | Description |
+|---------|-------------|
+| `de-claude` (or `de-claude clean`) | Strip Claude attribution from commit messages (default) |
+| `de-claude scan-files` | Scan tracked files in the repo for Claude mentions |
+| `de-claude scan` | Interactively review and rewrite commit messages |
+
+### Options (clean)
 
 ```
 --dry-run          Show what would happen without making changes
@@ -74,6 +84,49 @@ de-claude --remote --range abc1234..HEAD
 
 `--remote` always requires confirmation, even with `--yes`, because force-pushing rewrites published history.
 
+### Scanning files for Claude mentions
+
+Scan all tracked files in your repo for Claude-related content:
+
+```bash
+de-claude scan-files
+```
+
+By default, this looks for attribution patterns (Co-Authored-By, "Generated with Claude"). To also find broader mentions of "claude" (variable names, comments, docs), use `--broad`:
+
+```bash
+de-claude scan-files --broad
+```
+
+Results are grouped by file with line numbers and match types.
+
+### Interactive commit review
+
+Review commit messages one by one and choose how to handle each:
+
+```bash
+de-claude scan --last 10
+de-claude scan --all
+de-claude scan --range origin/main..HEAD
+```
+
+For each commit with Claude attribution, you can:
+- **Strip** — auto-remove Claude lines (same as default `clean` behavior)
+- **Edit** — open your `$EDITOR` to write a custom replacement message
+- **Skip** — leave the commit unchanged
+
+This uses the same remote/local rewriting strategy as `clean`:
+
+```bash
+# Review and rewrite locally (you push manually afterward)
+de-claude scan --last 10
+
+# Review, rewrite, and force-push in one step
+de-claude scan --remote --last 10
+```
+
+Options: `--last <n>`, `--all`, `--range <range>`, `--remote`, `--verbose`, `--dry-run`.
+
 ### Other examples
 
 Preview changes without applying them:
@@ -91,7 +144,7 @@ Skip confirmation (useful for scripts):
 de-claude --yes
 ```
 
-## What it removes
+## What it detects
 
 - `Co-Authored-By` lines containing "Claude" or "@anthropic.com"
 - `Generated with [Claude Code]` lines
@@ -119,6 +172,8 @@ Implemented JWT-based auth flow with refresh tokens.
 ## How it works
 
 The tool uses `git filter-branch` to rewrite commit messages. It only rewrites commits starting from the oldest affected commit, minimizing unnecessary history changes.
+
+When using interactive mode (`scan`), custom replacement messages are matched by original message content during the filter-branch pass — this allows per-commit customization while still using a single efficient rewrite operation.
 
 ### Auto-detection (no flags)
 

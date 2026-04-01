@@ -79,6 +79,35 @@ export function showInfo(message) {
   console.log();
 }
 
+export function showFileScanResults(results) {
+  if (results.length === 0) {
+    console.log();
+    console.log(chalk.green('No Claude mentions found in tracked files.'));
+    console.log();
+    return;
+  }
+
+  console.log();
+  console.log(chalk.bold(`Found ${results.length} Claude mention${results.length === 1 ? '' : 's'} across tracked files:`));
+  console.log();
+
+  // Group by file
+  const grouped = new Map();
+  for (const r of results) {
+    if (!grouped.has(r.file)) grouped.set(r.file, []);
+    grouped.get(r.file).push(r);
+  }
+
+  for (const [file, matches] of grouped) {
+    console.log(`  ${chalk.cyan(file)}`);
+    for (const m of matches) {
+      console.log(`    ${chalk.dim(`L${m.lineNumber}:`)} ${m.content.trim()} ${chalk.dim(`[${m.matchType}]`)}`);
+    }
+  }
+
+  console.log();
+}
+
 export function showRemoteWarning() {
   console.log();
   console.log(chalk.red.bold('⚠  WARNING: You are about to rewrite published history!'));
