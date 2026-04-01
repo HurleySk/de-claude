@@ -140,6 +140,11 @@ export function needsForcePush(trackingBranch) {
 }
 
 export function forcePush() {
+  const tracking = getTrackingBranch();
+  if (!tracking) {
+    const branch = getCurrentBranch();
+    return runGit(`push --force-with-lease --set-upstream origin ${branch}`, { throwOnError: true });
+  }
   return runGit('push --force-with-lease', { throwOnError: true });
 }
 
