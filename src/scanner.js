@@ -1,17 +1,5 @@
-// Patterns to detect Claude attribution
-const CLAUDE_PATTERNS = [
-  // Co-Authored-By lines containing Claude or anthropic.com (case-insensitive)
-  /^co-authored-by:.*claude.*$/im,
-  /^co-authored-by:.*@anthropic\.com.*$/im,
-  // Generated with Claude Code line
-  /^.*Generated with \[Claude Code\].*$/m,
-  /^.*Generated with Claude Code.*$/m,
-  // The emoji variant
-  /^.*🤖.*Generated with.*Claude.*$/m
-];
-
-// Patterns for line-by-line removal
-const LINE_PATTERNS = [
+// Patterns to detect and remove Claude attribution (line-level matching)
+export const LINE_PATTERNS = [
   /^co-authored-by:.*claude.*/i,
   /^co-authored-by:.*@anthropic\.com.*/i,
   /^.*Generated with \[Claude Code\].*/,
@@ -20,7 +8,8 @@ const LINE_PATTERNS = [
 ];
 
 export function hasClaudeAttribution(message) {
-  return CLAUDE_PATTERNS.some(pattern => pattern.test(message));
+  const lines = message.split('\n');
+  return lines.some(line => LINE_PATTERNS.some(pattern => pattern.test(line)));
 }
 
 export function findClaudeLines(message) {

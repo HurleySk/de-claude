@@ -6,7 +6,7 @@ import { run } from '../src/index.js';
 program
   .name('de-claude')
   .description('Remove Claude co-authorship attribution from git commits')
-  .version('1.3.1')
+  .version('1.3.2')
   .option('--dry-run', 'Preview which commits would be cleaned, without making changes')
   .option('-y, --yes', 'Skip confirmation prompt')
   .option('--verbose', 'Show the exact attribution lines that will be removed')

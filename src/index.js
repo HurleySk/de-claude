@@ -21,58 +21,64 @@ import {
   confirm
 } from './ui.js';
 
-export async function run(options) {
-  const { dryRun, yes, verbose, range: explicitRange, remote, last, all } = options;
-
-  // Check if we're in a git repository
+function validateOptions({ last, range: explicitRange, all, remote }) {
   if (!isGitRepo()) {
     throw new Error('Not a git repository. Please run this command from within a git repository.');
   }
 
-  // Validate --all, --last, and --range are mutually exclusive
   if ([last, explicitRange, all].filter(Boolean).length > 1) {
     throw new Error('--all, --last, and --range are mutually exclusive. Use one.');
   }
 
-  // Validate --last is a positive integer
   if (last !== undefined) {
-    const n = parseInt(last, 10);
-    if (isNaN(n) || n <= 0) {
+    const n = Number(last);
+    if (!Number.isInteger(n) || n <= 0) {
       throw new Error('--last requires a positive integer (e.g., --last 3)');
     }
   }
 
-  // Convert --last/--all to a range
   const effectiveRange = all ? 'ROOT..HEAD'
-    : last ? `HEAD~${parseInt(last, 10)}..HEAD`
+    : last ? `HEAD~${Number(last)}..HEAD`
     : explicitRange;
 
-  // Validate --remote requires an explicit range
   if (remote && !effectiveRange) {
     throw new Error('--remote requires --range, --last, or --all (e.g., --remote --last 5)');
   }
 
-  // Validate --remote requires a remote
   if (remote && !hasRemote()) {
     throw new Error('No remote configured. --remote requires a git remote.');
   }
 
-  // Check for uncommitted changes
   if (isDirty()) {
     throw new Error('You have uncommitted changes. Please commit or stash your changes before running de-claude.');
   }
 
-  // Determine the commit range to process
+  return effectiveRange;
+}
+
+function determinePushStatus(trackingBranch) {
+  if (!hasRemote() || !trackingBranch) {
+    return 'no-remote';
+  }
+  if (needsForcePush(trackingBranch)) {
+    return 'force-push-needed';
+  }
+  return 'normal-push';
+}
+
+export async function run(options) {
+  const { dryRun, yes, verbose, remote, last } = options;
+
+  const effectiveRange = validateOptions(options);
+
   const trackingBranch = getTrackingBranch();
   const commitRange = getCommitRange(effectiveRange, trackingBranch);
 
-  // Get all commits in range
   // Use --first-parent with --last to avoid counting merge branch commits
   const allCommits = getCommits(commitRange, { firstParent: !!last });
 
   if (allCommits.length === 0) {
     if (!effectiveRange && trackingBranch) {
-      // All commits are already pushed — suggest --remote
       showInfo(
         'No unpushed commits found. All commits are already on the remote.\n' +
         '  To clean already-pushed commits, use:\n' +
@@ -84,7 +90,6 @@ export async function run(options) {
     return;
   }
 
-  // Scan for commits with Claude attribution
   const affectedCommits = scanCommits(allCommits);
 
   if (affectedCommits.length === 0) {
@@ -100,20 +105,15 @@ export async function run(options) {
   const oldestIdx = allCommits.findIndex(c => c.fullHash === oldestAffected.fullHash);
   const rewriteCount = oldestIdx + 1;
 
-  // Handle dry-run mode
   if (dryRun) {
     showDryRun(affectedCommits, rewriteCount, verbose);
     return;
   }
 
-  // Show preview
   showPreview(affectedCommits, rewriteCount, verbose);
 
-  // Remote mode: show strong warning
   if (remote) {
     showRemoteWarning();
-
-    // Always require explicit confirmation for remote, even with --yes
     const proceed = await confirm('Force-push rewritten commits to origin?');
     if (!proceed) {
       console.log('\nAborted.\n');
@@ -127,7 +127,6 @@ export async function run(options) {
     }
   }
 
-  // Rewrite commits
   console.log('\nRewriting commits...');
   const result = await rewriteCommits(rewriteRange, affectedCommits);
 
@@ -135,7 +134,6 @@ export async function run(options) {
     throw new Error(`Failed to rewrite commits: ${result.error}`);
   }
 
-  // Force-push if --remote
   if (remote) {
     console.log('Force-pushing to origin...');
     try {
@@ -151,18 +149,7 @@ export async function run(options) {
     return;
   }
 
-  // Determine push status
-  let pushStatus;
-  if (!hasRemote()) {
-    pushStatus = 'no-remote';
-  } else if (!trackingBranch) {
-    pushStatus = 'no-remote';
-  } else if (needsForcePush(trackingBranch)) {
-    pushStatus = 'force-push-needed';
-  } else {
-    pushStatus = 'normal-push';
-  }
-
+  const pushStatus = determinePushStatus(trackingBranch);
   showResult(affectedCommits.length, pushStatus);
 
   if (pushStatus === 'force-push-needed' && effectiveRange) {

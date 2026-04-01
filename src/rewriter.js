@@ -2,7 +2,7 @@ import { execSync } from 'child_process';
 import { writeFileSync, unlinkSync, chmodSync } from 'fs';
 import { tmpdir } from 'os';
 import { join, sep } from 'path';
-import { removeClaudeLines } from './scanner.js';
+import { LINE_PATTERNS } from './scanner.js';
 
 export async function rewriteCommits(range, commits) {
   if (commits.length === 0) {
@@ -53,13 +53,12 @@ export async function rewriteCommits(range, commits) {
 
 export function createFilterScript() {
   // Create a Node.js script that filters the commit message
+  const serializedPatterns = LINE_PATTERNS
+    .map(p => `  new RegExp(${JSON.stringify(p.source)}, ${JSON.stringify(p.flags)})`)
+    .join(',\n');
   const scriptContent = `
 const LINE_PATTERNS = [
-  /^co-authored-by:.*claude.*/i,
-  /^co-authored-by:.*@anthropic\\.com.*/i,
-  /^.*Generated with \\[Claude Code\\].*/,
-  /^.*Generated with Claude Code.*/,
-  /^.*🤖.*Generated with.*Claude.*/
+${serializedPatterns}
 ];
 
 let message = '';

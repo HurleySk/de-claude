@@ -1,7 +1,4 @@
-import { execSync, exec } from 'child_process';
-import { promisify } from 'util';
-
-const execAsync = promisify(exec);
+import { execSync } from 'child_process';
 
 function runGit(args, options = {}) {
   try {
@@ -11,21 +8,6 @@ function runGit(args, options = {}) {
       ...options
     });
     return result.trim();
-  } catch (error) {
-    if (options.throwOnError !== false) {
-      throw error;
-    }
-    return null;
-  }
-}
-
-async function runGitAsync(args, options = {}) {
-  try {
-    const { stdout } = await execAsync(`git ${args}`, {
-      encoding: 'utf-8',
-      ...options
-    });
-    return stdout.trim();
   } catch (error) {
     if (options.throwOnError !== false) {
       throw error;
@@ -119,7 +101,6 @@ export function getCommits(range, { firstParent = false } = {}) {
   }
 
   const commits = [];
-  const entries = output.split('%x00\n').filter(Boolean);
 
   // Parse the output - each commit has hash, subject, and full body
   const lines = output.split('\x00');
@@ -154,35 +135,6 @@ export function needsForcePush(trackingBranch) {
   // If we're ahead and remote has our commits, we'll need force push after rewriting
   // Actually, we need to check if the commits we're rewriting exist on remote
   return aheadCount && parseInt(aheadCount) > 0;
-}
-
-export function getFirstCommitInRange(range) {
-  if (range === 'HEAD') {
-    // Get the very first commit
-    return runGit('rev-list --max-parents=0 HEAD', { throwOnError: false });
-  }
-
-  const [base] = range.split('..');
-  return base;
-}
-
-export async function rewriteCommits(range, messageFilter) {
-  const envScript = messageFilter;
-
-  // Use git filter-branch with msg-filter
-  // The messageFilter should be a path to a script that filters stdin to stdout
-  const result = await runGitAsync(
-    `filter-branch --force --msg-filter "${messageFilter}" ${range}`,
-    { throwOnError: false }
-  );
-
-  return result !== null;
-}
-
-export function getCommitsBetween(base, head = 'HEAD') {
-  const output = runGit(`rev-list ${base}..${head}`, { throwOnError: false });
-  if (!output) return [];
-  return output.split('\n').filter(Boolean);
 }
 
 export function forcePush() {
