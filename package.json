@@ -1,13 +1,13 @@
 {
   "name": "de-claude",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Remove Claude co-authorship attribution from git commits",
   "type": "module",
   "bin": {
     "de-claude": "./bin/de-claude.js"
   },
   "scripts": {
-    "test": "node --test test/"
+    "test": "node --test test/*.test.js"
   },
   "keywords": [
     "git",

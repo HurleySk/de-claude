@@ -13,7 +13,7 @@ describe('createFilterScript with messageMap', () => {
     try {
       const result = execSync(
         `echo "original message\n\nCo-Authored-By: Claude <noreply@anthropic.com>" | ${filterCommand}`,
-        { encoding: 'utf-8', shell: '/bin/bash' }
+        { encoding: 'utf-8', shell: 'bash' }
       );
       assert.strictEqual(result.trim(), 'replaced message');
     } finally {
@@ -30,7 +30,7 @@ describe('createFilterScript with messageMap', () => {
     try {
       const result = execSync(
         `echo "fix bug\n\nCo-Authored-By: Claude <noreply@anthropic.com>" | ${filterCommand}`,
-        { encoding: 'utf-8', shell: '/bin/bash' }
+        { encoding: 'utf-8', shell: 'bash' }
       );
       assert.strictEqual(result.trim(), 'fix bug');
     } finally {
@@ -44,7 +44,7 @@ describe('createFilterScript with messageMap', () => {
     try {
       const result = execSync(
         `echo "fix bug\n\nCo-Authored-By: Claude <noreply@anthropic.com>" | ${filterCommand}`,
-        { encoding: 'utf-8', shell: '/bin/bash' }
+        { encoding: 'utf-8', shell: 'bash' }
       );
       assert.strictEqual(result.trim(), 'fix bug');
     } finally {
@@ -58,7 +58,7 @@ describe('createFilterScript with messageMap', () => {
     try {
       const result = execSync(
         `echo "fix bug\n\nGenerated with Claude Code" | ${filterCommand}`,
-        { encoding: 'utf-8', shell: '/bin/bash' }
+        { encoding: 'utf-8', shell: 'bash' }
       );
       assert.strictEqual(result.trim(), 'fix bug');
     } finally {

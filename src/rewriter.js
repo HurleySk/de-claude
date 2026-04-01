@@ -87,7 +87,7 @@ ${grepChain} | ${cleanupAwk}
     const scriptPath = join(tmpdir(), `de-claude-filter-${process.pid}.sh`);
     writeFileSync(scriptPath, scriptContent, 'utf-8');
     chmodSync(scriptPath, '755');
-    return scriptPath;
+    return scriptPath.replace(/\\/g, '/');
   }
 
   // Interactive path: embed message map as cksum-keyed lookup in shell script
@@ -118,13 +118,14 @@ printf '%s' "$MSG" | ${grepChain} | ${cleanupAwk}
   const scriptPath = join(tmpdir(), `de-claude-filter-${process.pid}.sh`);
   writeFileSync(scriptPath, scriptContent, 'utf-8');
   chmodSync(scriptPath, '755');
-  return scriptPath;
+  return scriptPath.replace(/\\/g, '/');
 }
 
 function computeCksum(text) {
   // Use Node's execSync to get the same cksum the shell script will compute
   const result = execSync(`printf '%s' ${shellQuote(text)} | cksum | cut -d' ' -f1`, {
     encoding: 'utf-8',
+    shell: 'bash',
     stdio: ['pipe', 'pipe', 'pipe']
   });
   return result.trim();
